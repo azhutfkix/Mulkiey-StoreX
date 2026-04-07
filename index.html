@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Mulkiey Store</title>
+
+<style>
+body {
+    font-family: Arial;
+    margin:0;
+    background:#f4f4f4;
+}
+
+header {
+    background:#111;
+    color:white;
+    padding:15px;
+    display:flex;
+    align-items:center;
+    gap:15px;
+    justify-content:center;
+    flex-wrap:wrap;
+}
+
+header h1 {
+    margin:0;
+    font-size:1.8em;
+}
+
+header p {
+    margin:0;
+    font-size:1em;
+}
+
+.top-bar {
+    display:flex;
+    justify-content:space-between;
+    padding:10px;
+    background:white;
+    flex-wrap:wrap;
+    gap:10px;
+}
+
+input, select {
+    padding:8px;
+    border-radius:5px;
+    border:1px solid #ccc;
+}
+
+.container {
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:20px;
+    padding:20px;
+}
+
+.product {
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    text-align:center;
+    box-shadow:0 2px 5px rgba(0,0,0,0.2);
+}
+
+button {
+    background:#28a745;
+    color:white;
+    border:none;
+    padding:10px;
+    margin-top:10px;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+button:hover {
+    background:#abbeb0;
+}
+
+#cart {
+    position:fixed;
+    top:70px;
+    right:10px;
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    width:270px;
+    max-height:80vh;
+    overflow:auto;
+    box-shadow:0 2px 5px rgba(0,0,0,0.3);
+}
+
+.remove {
+    background:red;
+    font-size:12px;
+    padding:4px;
+}
+
+.checkout {
+    background:#007bff;
+    width:100%;
+}
+
+.modal {
+    display:none;
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    background:white;
+    padding:20px;
+    width:350px;
+    border-radius:10px;
+    box-shadow:0 5px 15px rgba(0,0,0,0.3);
+}
+</style>
+</head>
+
+<body>
+<header>
+    <div>
+        <h1>Mulkiey Store</h1>
+        <p>Your trusted online shop</p>
+    </div>
+</header>
+
+<div class="top-bar">
+    <input type="text" id="search" placeholder="Search..." onkeyup="filterProducts()">
+    <select id="category" onchange="filterProducts()">
+        <option value="all">All</option>
+        <option value="Clothes">Clothes</option>
+        <option value="Shoes">Shoes</option>
+        <option value="Accessories">Accessories</option>
+    </select>
+</div>
+
+<div id="cart">
+    <h3>Cart</h3>
+    <div id="cart-items"></div>
+    <p>Total: ₦<span id="total">0</span></p>
+    <button class="checkout" onclick="openCheckout()">Checkout</button>
+</div>
+
+<div class="container" id="products"></div>
+
+<div class="modal" id="checkoutModal">
+    <h3>Customer Details</h3>
+    <input type="text" id="name" placeholder="Full Name"><br><br>
+    <input type="text" id="phone" placeholder="Phone Number"><br><br>
+    <button onclick="processPayment()">Pay Now</button>
+    <button onclick="closeModal()">Cancel</button>
+</div>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+
+<script>
+const products=[
+    {name:"Shirt",price:5000,category:"Clothes"},
+    {name:"Jeans",price:8000,category:"Clothes"},
+    {name:"Sneakers",price:15000,category:"Shoes"},
+    {name:"Cap",price:3000,category:"Accessories"}
+];
+
+let cart=[];
+
+function displayProducts(list=products){
+    const container=document.getElementById("products");
+    container.innerHTML="";
+    list.forEach((p,i)=>{
+        container.innerHTML+=`<div class="product">
+        <h3>${p.name}</h3>
+        <p>₦${p.price}</p>
+        <input type="number" id="qty-${i}" value="1" min="1">
+        <button onclick="addToCart(${i})">Add</button>
+        </div>`;
+    });
+}
+
+function addToCart(i){
+    let qty=document.getElementById(`qty-${i}`).value;
+    let existing=cart.findIndex(item=>item.name===products[i].name);
+    if(existing!==-1){
+        cart[existing].quantity+=parseInt(qty);
+    } else {
+        cart.push({...products[i],quantity:parseInt(qty)});
+    }
+    updateCart();
+}
+
+function updateCart(){
+    let cartBox=document.getElementById("cart-items");
+    let total=0;
+    cartBox.innerHTML="";
+    cart.forEach((item,i)=>{
+        let itemTotal=item.price*item.quantity;
+        total+=itemTotal;
+        cartBox.innerHTML+=`<div>${item.name} x${item.quantity} - ₦${itemTotal} <button class='remove' onclick='removeItem(${i})'>X</button></div>`;
+    });
+    document.getElementById("total").innerText=total;
+}
+
+function removeItem(i){cart.splice(i,1);updateCart();}
+
+function filterProducts(){
+    let s=document.getElementById("search").value.toLowerCase();
+    let c=document.getElementById("category").value;
+    let filtered=products.filter(p=>p.name.toLowerCase().includes(s)&&(c==='all'||p.category===c));
+    displayProducts(filtered);
+}
+
+function openCheckout(){document.getElementById("checkoutModal").style.display='block';}
+function closeModal(){document.getElementById("checkoutModal").style.display='none';}
+
+function processPayment(){
+    let total=document.getElementById("total").innerText*100;
+    let name=document.getElementById("name").value;
+    if(!name){alert('Enter your name'); return;}
+    let handler=PaystackPop.setup({
+        key:'pk_test_xxxxxxxxx', 
+        email:name.replace(/ /g,'')+'@email.com',
+        amount:total,
+        currency:'NGN',
+        callback:function(response){alert('Payment successful! Ref: '+response.reference);},
+        onClose:function(){alert('Payment cancelled');}
+    });
+    handler.openIframe();
+}
+
+displayProducts();
+</script>
+
+<section style="background:white;padding:30px;margin:20px;border-radius:10px;">
+<h2>About Us</h2>
+<p>Welcome to Mulkiey Store. We provide quality clothing, shoes, and accessories at affordable prices. Our goal is to give customers the best shopping experience with fast delivery and secure payment.</p>
+</section>
+
+<section style="background:white;padding:30px;margin:20px;border-radius:10px;">
+<h2>Our Address</h2>
+<p>Location: Kano, Nigeria</p>
+<p>Phone: +234 803 236 5309</p>
+<p>Email: 2K23mulki@gmail.com</p>
+</section>
+
+</body>
+</html>
